@@ -6,7 +6,7 @@
 
 このプロジェクトは、Kaggle ランクに基づいてバッジを自動生成します。各カテゴリ（コンペティション、データセット、ノートブック、ディスカッション）に対して様々なスタイルのバッジを作成します。GitHub Actions Workflow として利用することで、あなたの GitHub プロフィールページを充実させることができます。
 
-(例: https://github.com/spider-man-tm)
+(例: https://github.com/takayoshi-makabe)
 
 以下はコンペティション用のバッジのリストです。同様のスタイルのバッジがデータセット、ノートブック、ディスカッション用にも自動生成されます。
 
@@ -28,9 +28,9 @@
 
 ### 1. 専用リポジトリの作成
 
-あなたの GitHub ユーザー名と同じ名前のリポジトリを作成してください。このリポジトリはあなたの GitHub プロフィールに表示されます。例えば、私の GitHub ユーザー名は spiderman-tm ですが、その場合リポジトリ名は spiderman-tm になります。
+あなたの GitHub ユーザー名と同じ名前のリポジトリを作成してください。このリポジトリはあなたの GitHub プロフィールに表示されます。例えば、私の GitHub ユーザー名は takayoshi-makabe ですが、その場合リポジトリ名は takayoshi-makabe になります。
 
-- 参考：[Managing your profile README](https:/.github.com/en/account-and-profile/setting-up-and-managing-your-github-profile/customizing-your-profile/managing-your-profile-readme)
+- 参考：[Managing your profile README](https://docs.github.com/en/account-and-profile/setting-up-and-managing-your-github-profile/customizing-your-profile/managing-your-profile-readme)
 
 ### 2. ワークフローの権限設定
 
@@ -46,7 +46,7 @@
 
 以下のコードをコピーして YAML ファイルに貼り付けてください。{ Your Kaggle Username }をあなたの Kaggle ユーザー名に置き換えてください。Kaggle ユーザー名を直接 YAML ファイルに含めたくない場合は、GitHub Secrets に値を保存する方法もあります。お好みの方法を使用してください。
 
-- ref. [Using secrets in workflow](https:/.github.com/en/actions/security-guides/using-secrets-in-github-actions)
+- ref. [Using secrets in workflow](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions)
 
 ```yaml
 name: Kaggle Badges
@@ -77,7 +77,7 @@ jobs:
         run: npx puppeteer browsers install chrome@131.0.6778.85
 
       - name: Use Kaggle Badges Action
-        uses: spider-man-tm/kaggle-badges@v1.2.3
+        uses: takayoshi-makabe/kaggle-badges@v1.3.1
         with:
           # ex. user_name: spidermandance
           user_name: { Your Kaggle Username }
@@ -118,7 +118,7 @@ YAML ファイルをリポジトリにコミットおよびプッシュしてく
 
 以下は参考例です
 
-- 例：[https://github.com/spider-man-tm](https://github.com/spider-man-tm)
+- 例：[https://github.com/takayoshi-makabe](https://github.com/takayoshi-makabe)
 
 ## ローカル開発
 
