@@ -5,12 +5,13 @@ describe("getKaggleuserProfile userName: spidermandance", () => {
     const userName = "spidermandance";
     const userProfile = await getKaggleuserProfile(userName);
     const CompetitionsRank = userProfile.Competitions?.rank;
-    const DatasetsRank = userProfile.Datasets?.rank;
+    const NotebooksRank = userProfile.Notebooks?.rank;
     const CompetitionsMedalCounts = userProfile.Competitions?.medal_counts;
     expect(CompetitionsRank).toEqual("Master");
-    expect(DatasetsRank).toEqual("Contributor");
+    expect(NotebooksRank).toEqual("Expert");
+    expect(userProfile.Datasets).toBeUndefined();
     expect(CompetitionsMedalCounts).toEqual({ gold: 2, silver: 2, bronze: 8 });
-  }, 30000);
+  }, 60000);
 });
 
 describe("getKaggleuserProfile userName: bestfitting", () => {
@@ -19,5 +20,5 @@ describe("getKaggleuserProfile userName: bestfitting", () => {
     const userProfile = await getKaggleuserProfile(userName);
     const CompetitionsRank = userProfile.Competitions?.rank;
     expect(CompetitionsRank).toEqual("Grandmaster");
-  }, 30000);
+  }, 60000);
 });

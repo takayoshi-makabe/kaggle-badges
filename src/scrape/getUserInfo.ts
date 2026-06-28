@@ -1,6 +1,21 @@
 import puppeteer, { Page } from "puppeteer";
-import { xpaths } from "./xpaths";
-import { KaggleProfile, Rank, Xpaths } from "../types";
+import { Category, KaggleProfile, MedalCounts, Order, Rank } from "../types";
+
+const CATEGORIES: Category[] = [
+  "Competitions",
+  "Datasets",
+  "Notebooks",
+  "Discussions",
+];
+
+const RANKS: Rank[] = ["Grandmaster", "Master", "Expert", "Contributor"];
+const END_MARKERS = new Set([
+  "Awards",
+  "Bio",
+  "Followers",
+  "Following",
+  "Badges",
+]);
 
 /**
  * Get the user profile from Kaggle
@@ -14,173 +29,212 @@ export async function getKaggleuserProfile(
     headless: true,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
-  const page: Page = await browser.newPage();
-  await page.goto(url, { waitUntil: "networkidle2" });
-  await new Promise((resolve) => setTimeout(resolve, 8000));
 
-  // Initialize the userProfile object
-  let userProfile: KaggleProfile = {};
+  try {
+    const page: Page = await browser.newPage();
+    await page.goto(url, { waitUntil: "networkidle2" });
+    await new Promise((resolve) => setTimeout(resolve, 8000));
+    await page
+      .waitForFunction(
+        () => document.body.innerText.includes("Kaggle Achievements"),
+        { timeout: 10000 }
+      )
+      .catch(() => undefined);
 
-  for (const key in xpaths) {
-    const section = xpaths[key as keyof typeof xpaths];
+    const pageText = await page.evaluate(() => document.body.innerText);
+    const profile = parseKaggleAchievements(pageText);
+    const medalCounts = await getMedalCountsByCategory(page);
 
-    let category = "";
-    try {
-      category = await getTextContentByXpath(page, section.category);
-    } catch (error) {
-      console.log(`${key}: No category found`);
+    for (const category of CATEGORIES) {
+      if (profile[category] && medalCounts[category]) {
+        profile[category].medal_counts = medalCounts[category];
+      }
+    }
+
+    return profile;
+  } finally {
+    await browser.close();
+  }
+}
+
+export function parseKaggleAchievements(pageText: string): KaggleProfile {
+  const lines = pageText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const profile: KaggleProfile = {};
+  const startIndex = lines.indexOf("Kaggle Achievements");
+
+  if (startIndex < 0) {
+    return profile;
+  }
+
+  for (let index = startIndex + 1; index < lines.length; index++) {
+    const category = lines[index] as Category;
+
+    if (END_MARKERS.has(lines[index])) {
       break;
     }
 
-    const rank = await getTextContentByXpath(page, section.rank);
-
-    let order = "";
-    let participants = "";
-    try {
-      order = await getTextContentByXpath(page, section.order);
-      participants = await getTextContentByXpath(page, section.participants);
-      participants = participants.replace("of", "");
-      participants = participants.trim();
-    } catch (error) {
-      console.log(`${category}: No order and participants found`);
+    if (!CATEGORIES.includes(category)) {
+      continue;
     }
-    const medalCounts = await getMedalCountsForProfile(
-      page,
-      section.medal_count
+
+    const rank = lines[index + 1] as Rank;
+
+    if (!RANKS.includes(rank)) {
+      continue;
+    }
+
+    const nextCategoryIndex = findNextCategoryIndex(lines, index + 1);
+    const sectionLines = lines.slice(
+      index + 2,
+      nextCategoryIndex >= 0 ? nextCategoryIndex : lines.length
     );
 
-    // Initialize the corresponding section in userProfile if not already initialized
-    if (category === "Competitions") {
-      userProfile.Competitions = {
-        rank: rank as Rank,
-        medal_counts: medalCounts,
-        order: {
-          order: order,
-          participants: participants,
-        },
-      };
-    } else if (category === "Datasets") {
-      userProfile.Datasets = {
-        rank: rank as Rank,
-        medal_counts: medalCounts,
-        order: {
-          order: order,
-          participants: participants,
-        },
-      };
-    } else if (category === "Notebooks") {
-      userProfile.Notebooks = {
-        rank: rank as Rank,
-        medal_counts: medalCounts,
-        order: {
-          order: order,
-          participants: participants,
-        },
-      };
-    } else if (category === "Discussions") {
-      userProfile.Discussions = {
-        rank: rank as Rank,
-        medal_counts: medalCounts,
-        order: {
-          order: order,
-          participants: participants,
-        },
-      };
+    profile[category] = {
+      rank,
+      medal_counts: parseMedalCounts(sectionLines),
+      order: parseOrder(sectionLines),
+    };
+  }
+
+  return profile;
+}
+
+function findNextCategoryIndex(lines: string[], startIndex: number): number {
+  for (let index = startIndex + 1; index < lines.length; index++) {
+    if (END_MARKERS.has(lines[index])) {
+      return index;
+    }
+
+    if (CATEGORIES.includes(lines[index] as Category)) {
+      return index;
     }
   }
 
-  await browser.close();
-  return userProfile;
+  return -1;
 }
 
-/**
- * Get the text content of an element by XPath
- * @param page - The Puppeteer page
- * @param xpath - The XPath of the element
- * @param timeout - The timeout in milliseconds (default is 5000 ms)
- */
-const getTextContentByXpath = async (
-  page: Page,
-  xpath: string,
-  timeout: number = 1000
-): Promise<string> => {
-  const timeoutPromise = new Promise<never>((_, reject) =>
-    setTimeout(
-      () => reject(new Error(`Timeout exceeded for xpath: ${xpath}`)),
-      timeout
-    )
-  );
+function parseMedalCounts(lines: string[]): MedalCounts {
+  const medalCounts: MedalCounts = { gold: 0, silver: 0, bronze: 0 };
+  const medalIndex = lines.indexOf("MEDALS");
 
-  const getTextContentPromise = async () => {
-    const elementHandle = await page.waitForSelector(`::-p-xpath(${xpath})`);
-    const info = await page.evaluate((element: Element | null) => {
-      return element ? element.textContent : null;
-    }, elementHandle);
-    if (info == null) {
-      throw new Error(`Text not found for xpath: ${xpath}`);
-    }
-    return info;
-  };
+  if (medalIndex < 0) {
+    return medalCounts;
+  }
 
-  return Promise.race([getTextContentPromise(), timeoutPromise]);
-};
+  const rankIndex = lines.indexOf("RANK");
+  const medalValues = lines
+    .slice(medalIndex + 1, rankIndex >= 0 ? rankIndex : lines.length)
+    .map(parseNumber)
+    .filter((value): value is number => value != null);
 
-/**
- Helper function to get medal counts by XPath
- * @param page - The Puppeteer page
- * @param baseXpath - The base XPath of the medal counts
- */
-const getMedalCountsForProfile = async (
-  page: Page,
-  baseXpath: string
-): Promise<{ gold: number; silver: number; bronze: number }> => {
-  const medalCounts: { gold: number; silver: number; bronze: number } = {
-    gold: 0,
-    silver: 0,
-    bronze: 0,
-  };
-
-  // Function to get medal counts and types
-  const getMedalsData = async (
-    xpath: string
-  ): Promise<{ type: string; count: number }[]> => {
-    return await page.evaluate((xpath) => {
-      const medalsData: { type: string; count: number }[] = [];
-      const result = document.evaluate(
-        `${xpath}/div`,
-        document,
-        null,
-        XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
-        null
-      );
-      for (let i = 0; i < result.snapshotLength; i++) {
-        const container = result.snapshotItem(i) as HTMLElement;
-        if (container) {
-          const countElement = container.querySelector("span");
-          const imgElement = container.querySelector("img");
-          const count = countElement
-            ? parseInt(countElement.textContent || "0", 10)
-            : 0;
-          const type = imgElement ? imgElement.title.trim().toLowerCase() : "";
-          medalsData.push({ type, count });
-        }
-      }
-      return medalsData;
-    }, xpath);
-  };
-
-  const medalsData = await getMedalsData(baseXpath);
-
-  medalsData.forEach((medal) => {
-    const { type, count } = medal;
-    if (type.includes("gold")) {
-      medalCounts.gold += isNaN(count) ? 0 : count;
-    } else if (type.includes("silver")) {
-      medalCounts.silver += isNaN(count) ? 0 : count;
-    } else if (type.includes("bronze")) {
-      medalCounts.bronze += isNaN(count) ? 0 : count;
-    }
-  });
+  medalCounts.gold = medalValues[0] ?? 0;
+  medalCounts.silver = medalValues[1] ?? 0;
+  medalCounts.bronze = medalValues[2] ?? 0;
 
   return medalCounts;
-};
+}
+
+function parseOrder(lines: string[]): Order {
+  const rankIndex = lines.indexOf("RANK");
+
+  if (rankIndex < 0) {
+    return { order: "", participants: "" };
+  }
+
+  let order = "";
+  let participants = "";
+
+  for (const line of lines.slice(rankIndex + 1)) {
+    const number = parseNumber(line);
+
+    if (!order && number != null) {
+      order = line;
+      continue;
+    }
+
+    if (line.startsWith("of ")) {
+      participants = line.replace(/^of\s+/, "").trim();
+      break;
+    }
+  }
+
+  return { order, participants };
+}
+
+function parseNumber(value: string): number | null {
+  const normalized = value.replace(/,/g, "");
+
+  if (!/^\d+$/.test(normalized)) {
+    return null;
+  }
+
+  return Number(normalized);
+}
+
+async function getMedalCountsByCategory(
+  page: Page
+): Promise<Partial<Record<Category, MedalCounts>>> {
+  return page.evaluate(
+    (categories, ranks) => {
+      const medalCountsByCategory: Partial<Record<Category, MedalCounts>> = {};
+
+      const parseCount = (value: string | null | undefined): number => {
+        const normalized = (value ?? "").replace(/,/g, "").trim();
+        return /^\d+$/.test(normalized) ? Number(normalized) : 0;
+      };
+
+      const getCategory = (element: Element | null): Category | null => {
+        for (let current = element; current && current !== document.body; current = current.parentElement) {
+          const lines = ((current as HTMLElement).innerText ?? "")
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .filter(Boolean);
+          const category = lines[0] as Category;
+          const rank = lines[1] as Rank;
+
+          if (categories.includes(category) && ranks.includes(rank)) {
+            return category;
+          }
+        }
+
+        return null;
+      };
+
+      for (const image of Array.from(document.querySelectorAll("img"))) {
+        const medalType = image.title.toLowerCase();
+
+        if (!medalType.includes("medal")) {
+          continue;
+        }
+
+        const category = getCategory(image);
+
+        if (!category) {
+          continue;
+        }
+
+        const medalCounts = (medalCountsByCategory[category] ??= {
+          gold: 0,
+          silver: 0,
+          bronze: 0,
+        });
+        const count = parseCount(image.parentElement?.innerText);
+
+        if (medalType.includes("gold")) {
+          medalCounts.gold += count;
+        } else if (medalType.includes("silver")) {
+          medalCounts.silver += count;
+        } else if (medalType.includes("bronze")) {
+          medalCounts.bronze += count;
+        }
+      }
+
+      return medalCountsByCategory;
+    },
+    CATEGORIES,
+    RANKS
+  );
+}
