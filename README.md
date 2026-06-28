@@ -4,7 +4,7 @@
 
 ## Summary
 
-This project automatically generates badges based on your Kaggle rank. It creates various styles of badges for each category: Competitions, Datasets, Notebooks, and Discussions. By utilizing it as a GitHub Actions Workflow, you can enhance your GitHub Profile (example: https://github.com/spider-man-tm).
+This project automatically generates badges based on your Kaggle rank. It creates various styles of badges for each category: Competitions, Datasets, Notebooks, and Discussions. By utilizing it as a GitHub Actions Workflow, you can enhance your GitHub Profile (example: https://github.com/takayoshi-makabe).
 
 Below is a list of badges for Competitions. Similar style badges are automatically generated for Datasets, Notebooks, and Discussions.
 
@@ -26,7 +26,7 @@ Additionally, we automatically generate badges based on the number of medals ear
 
 ### 1. Create a repository
 
-Create a repository with the same name as your GitHub username. This repository will be displayed on your GitHub profile. For example, my GitHub username is spiderman-tm, so the repository name will be spiderman-tm.
+Create a repository with the same name as your GitHub username. This repository will be displayed on your GitHub profile. For example, my GitHub username is takayoshi-makabe, so the repository name will be takayoshi-makabe.
 
 - ref. [Managing your profile README](https://docs.github.com/en/account-and-profile/setting-up-and-managing-your-github-profile/customizing-your-profile/managing-your-profile-readme)
 
@@ -76,7 +76,7 @@ jobs:
         run: npx puppeteer browsers install chrome@131.0.6778.85
 
       - name: Use Kaggle Badges Action
-        uses: spider-man-tm/kaggle-badges@v1.3.0
+        uses: takayoshi-makabe/kaggle-badges@v1.3.1
         with:
           # ex. user_name: spidermandance
           user_name: { Your Kaggle Username }
@@ -117,7 +117,7 @@ e.g.
 
 Following is my GitHub Profile README.md as an example
 
-- ref. [https://github.com/spider-man-tm](https://github.com/spider-man-tm)
+- ref. [https://github.com/takayoshi-makabe](https://github.com/takayoshi-makabe)
 
 ## Local Development
 

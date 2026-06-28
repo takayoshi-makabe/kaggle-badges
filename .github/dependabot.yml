@@ -6,7 +6,7 @@ updates:
     schedule:
       interval: "monthly"
     reviewers:
-      - "spider-man-tm"
+      - "takayoshi-makabe"
     groups:
       major-update:
         update-types:
@@ -21,7 +21,7 @@ updates:
     schedule:
       interval: "monthly"
     reviewers:
-      - "spider-man-tm"
+      - "takayoshi-makabe"
     groups:
       major-update:
         update-types:
